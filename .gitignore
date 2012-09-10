@@ -3,3 +3,6 @@
 
 # C extensions
 *.so
+
+# Vim temporary files
+*.swp
