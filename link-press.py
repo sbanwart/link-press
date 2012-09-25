@@ -35,71 +35,103 @@ if not os.path.isdir(data_path):
 
 db_path = os.path.join(data_path, dbname)
 
-try:
-    dbConn = sqlite3.connect(db_path)
-    cur = dbConn.cursor()
-
-    cur.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'links'")
-    data = cur.fetchone()
-
-    if not data:
-        cur.execute("CREATE TABLE links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, category, attribute_link_id INTEGER)")
-        cur.execute("CREATE TABLE tags(id INTEGER PRIMARY KEY, name TEXT)")
-        cur.execute("CREATE TABLE attribute_links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, title TEXT)")
-        dbConn.commit()
     
-    parser = argparse.ArgumentParser(description = 'Create a link blog entry and post it to WordPress')
-    parser.add_argument('url')
-    parser.add_argument('name')
-    parser.add_argument('category')
-    parser.add_argument('tags')
-    parser.add_argument('--attribute_url', '-u')
-    parser.add_argument('--attribute_title', '-t')
-    parser.add_argument('--attribute_name', '-n')
+def add_link(args):
+    try:
+        dbConn = sqlite3.connect(db_path)
+        cur = dbConn.cursor()
 
-    args = parser.parse_args()
-
-    cur.execute("SELECT id FROM links WHERE url = ?", [args.url])
-    data = cur.fetchone()
-    if not data:
-        attribute_link_id = -1
-        if args.attribute_url:
-            cur.execute("SELECT id FROM attribute_links WHERE url = ?", [args.attribute_url])
-            data = cur.fetchone()
-            if not data:
-                values = [args.attribute_url, args.attribute_name, args.attribute_title]
-                cur.execute("INSERT INTO attribute_links (url, name, title) VALUES (?, ?, ?)", values)
-                cur.execute("SELECT last_insert_rowid()")
+        cur.execute("SELECT id FROM links WHERE url = ?", [args.url])
+        data = cur.fetchone()
+        if not data:
+            attribute_link_id = -1
+            if args.attribute_url:
+                cur.execute("SELECT id FROM attribute_links WHERE url = ?", [args.attribute_url])
                 data = cur.fetchone()
-                attribute_link_id = data[0]
+                if not data:
+                    values = [args.attribute_url, args.attribute_name, args.attribute_title]
+                    cur.execute("INSERT INTO attribute_links (url, name, title) VALUES (?, ?, ?)", values)
+                    cur.execute("SELECT last_insert_rowid()")
+                    data = cur.fetchone()
+                    attribute_link_id = data[0]
+                else:
+                    attribute_link_id = data[0]
+                dbConn.commit()
+
+            if attribute_link_id > 0:
+                values = [args.url, args.name, args.category, attribute_link_id]
+                cur.execute("INSERT INTO links (url, name, category, attribute_link_id) VALUES (?, ?, ?, ?)", values)
             else:
-                attribute_link_id = data[0]
+                values = [args.url, args.name, args.category]
+                cur.execute("INSERT INTO links (url, name, category) VALUES (?, ?, ?)", values)
             dbConn.commit()
 
-        if attribute_link_id > 0:
-            values = [args.url, args.name, args.category, attribute_link_id]
-            cur.execute("INSERT INTO links (url, name, category, attribute_link_id) VALUES (?, ?, ?, ?)", values)
+            tags = args.tags.split(",")
+            for tag in tags:
+                cur.execute("SELECT id FROM tags WHERE name = ?", [tag])
+                data = cur.fetchone()
+                if not data:
+                    cur.execute("INSERT INTO tags (name) VALUES (?)", [tag])
+                    dbConn.commit()
         else:
-            values = [args.url, args.name, args.category]
-            cur.execute("INSERT INTO links (url, name, category) VALUES (?, ?, ?)", values)
-        dbConn.commit()
+            print "Link already exists in the database"
+    except sqlite3.Error, err:
+        if dbConn:
+            dbConn.rollback()
 
-        tags = args.tags.split(",")
-        for tag in tags:
-            cur.execute("SELECT id FROM tags WHERE name = ?", [tag])
-            data = cur.fetchone()
-            if not data:
-                cur.execute("INSERT INTO tags (name) VALUES (?)", [tag])
-                dbConn.commit()
-    else:
-        print "Link already exists in the database"
-except sqlite3.Error, err:
-    if dbConn:
-        dbConn.rollback()
+        print "Error when adding a link: %s" % err.args[0]
+        sys.exit(1)
 
-    print "Error during database check: %s" % err.args[0]
-    sys.exit(1)
+    finally:
+        if dbConn:
+            dbConn.close()
 
-finally:
-    if dbConn:
-        dbConn.close()
+def post_links(args):
+    print "Posting links...."
+
+def init_db():
+    try:
+        dbConn = sqlite3.connect(db_path)
+        cur = dbConn.cursor()
+
+        cur.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'links'")
+        data = cur.fetchone()
+
+        if not data:
+            cur.execute("CREATE TABLE links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, category, attribute_link_id INTEGER)")
+            cur.execute("CREATE TABLE tags(id INTEGER PRIMARY KEY, name TEXT)")
+            cur.execute("CREATE TABLE attribute_links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, title TEXT)")
+            dbConn.commit()
+
+    except sqlite3.Error, err:
+        if dbConn:
+            dbConn.rollback()
+
+        print "Error during database check: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if dbConn:
+            dbConn.close()
+
+parser = argparse.ArgumentParser(description = 'Create a link blog entry and post it to WordPress')
+subparsers = parser.add_subparsers()
+
+parser_add = subparsers.add_parser('add')
+parser_add.add_argument('url')
+parser_add.add_argument('name')
+parser_add.add_argument('category')
+parser_add.add_argument('tags')
+parser_add.add_argument('--attribute_url', '-u')
+parser_add.add_argument('--attribute_title', '-t')
+parser_add.add_argument('--attribute_name', '-n')
+parser_add.set_defaults(func = add_link)
+
+parser_post = subparsers.add_parser('post')
+parser_post.set_defaults(func = post_links)
+
+args = parser.parse_args()
+
+init_db()
+
+args.func(args)
