@@ -87,7 +87,38 @@ def add_link(args):
             dbConn.close()
 
 def post_links(args):
-    print "Posting links...."
+    try:
+        dbConn = sqlite3.connect(db_path)
+        cur = dbConn.cursor()
+
+        cur.execute("SELECT DISTINCT category FROM links")
+        categories = cur.fetchall()
+
+        post = ""
+        for category in categories:
+            post += "<p><strong>%s</strong></p>\n" % category
+            post += "<ul>\n"
+
+            cur.execute("SELECT url, name FROM links WHERE category = ?", category)
+            links = cur.fetchall()
+
+            for link in links:
+                post += "<li><a title=\"%s\" href=\"%s\">%s</a></li>\n" % (link[1], link[0], link[1])
+
+            post += "</ul>\n"
+        print post
+
+    except sqlite3.Error, err:
+        if dbConn:
+            dbConn.rollback()
+
+        print "Error when posting links: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if dbConn:
+            dbConn.close()
+
 
 def init_db():
     try:
