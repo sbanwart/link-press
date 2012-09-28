@@ -171,6 +171,8 @@ def build_tag_list():
         if conn:
             conn.close()
 
+def clear(args):
+    print "Removing data from database."
 
 def init_db():
     try:
@@ -212,6 +214,9 @@ parser_add.set_defaults(func = add_link)
 
 parser_post = subparsers.add_parser('post')
 parser_post.set_defaults(func = post_links)
+
+parser_clear = subparsers.add_parser('clear')
+parser_clear.set_defaults(func = clear)
 
 args = parser.parse_args()
 
