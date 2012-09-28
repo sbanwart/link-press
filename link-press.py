@@ -38,8 +38,8 @@ db_path = os.path.join(data_path, dbname)
     
 def add_link(args):
     try:
-        dbConn = sqlite3.connect(db_path)
-        cur = dbConn.cursor()
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
 
         cur.execute("SELECT id FROM links WHERE url = ?", [args.url])
         data = cur.fetchone()
@@ -56,7 +56,7 @@ def add_link(args):
                     attribute_link_id = data[0]
                 else:
                     attribute_link_id = data[0]
-                dbConn.commit()
+                conn.commit()
 
             if attribute_link_id > 0:
                 values = [args.url, args.name, args.category, attribute_link_id]
@@ -64,7 +64,7 @@ def add_link(args):
             else:
                 values = [args.url, args.name, args.category]
                 cur.execute("INSERT INTO links (url, name, category) VALUES (?, ?, ?)", values)
-            dbConn.commit()
+            conn.commit()
 
             tags = args.tags.split(",")
             for tag in tags:
@@ -72,58 +72,110 @@ def add_link(args):
                 data = cur.fetchone()
                 if not data:
                     cur.execute("INSERT INTO tags (name) VALUES (?)", [tag])
-                    dbConn.commit()
+                    conn.commit()
         else:
             print "Link already exists in the database"
     except sqlite3.Error, err:
-        if dbConn:
-            dbConn.rollback()
+        if conn:
+            conn.rollback()
 
         print "Error when adding a link: %s" % err.args[0]
         sys.exit(1)
 
     finally:
-        if dbConn:
-            dbConn.close()
+        if conn:
+            conn.close()
 
 def post_links(args):
+    post_body = build_post_body()
+
+    tag_list = build_tag_list()
+
+    print post_body
+
+    print tag_list
+        
+def build_post_body():
     try:
-        dbConn = sqlite3.connect(db_path)
-        cur = dbConn.cursor()
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT id, url, name, title FROM attribute_links")
+        attribute_links = cur.fetchall()
+
+        marker = ""
+        attribute_dict = {}
+        for link in attribute_links:
+            marker += "*"
+            attribute_data = [link[1], link[2], link[3], marker]
+            attribute_dict[link[0]] = attribute_data
 
         cur.execute("SELECT DISTINCT category FROM links")
         categories = cur.fetchall()
 
-        post = ""
+        post_body = ""
         for category in categories:
-            post += "<p><strong>%s</strong></p>\n" % category
-            post += "<ul>\n"
+            post_body += "<p><strong>%s</strong></p>\n" % category
+            post_body += "<ul>\n"
 
-            cur.execute("SELECT url, name FROM links WHERE category = ?", category)
+            cur.execute("SELECT url, name, attribute_link_id FROM links WHERE category = ?", category)
             links = cur.fetchall()
 
             for link in links:
-                post += "<li><a title=\"%s\" href=\"%s\">%s</a></li>\n" % (link[1], link[0], link[1])
+                attribute_id = link[2]
+                if attribute_id:
+                    post_body += "<li><a title=\"%s\" href=\"%s\">%s</a></li> <span style=\"color: #0000ff;\">%s</span>\n" % (link[1], link[0], link[1], attribute_dict[attribute_id][3])
+                else:
+                    post_body += "<li><a title=\"%s\" href=\"%s\">%s</a></li>\n" % (link[1], link[0], link[1])
 
-            post += "</ul>\n"
-        print post
+            post_body += "</ul>\n"
+
+        for key in attribute_dict:
+            post_body += "<p><span style=\"color: #0000ff;\">%s</span> Courtesy of <a title=\"%s\" href=\"%s\">%s</a>.</p>\n" % (attribute_dict[key][3], attribute_dict[key][2], attribute_dict[key][0], attribute_dict[key][1])
+
+        return post_body
 
     except sqlite3.Error, err:
-        if dbConn:
-            dbConn.rollback()
+        if conn:
+            conn.rollback()
 
         print "Error when posting links: %s" % err.args[0]
         sys.exit(1)
 
     finally:
-        if dbConn:
-            dbConn.close()
+        if conn:
+            conn.close()
+
+def build_tag_list():
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT name FROM tags")
+        tags = cur.fetchall()
+
+        tag_list = ""
+        for tag in tags:
+            tag_list += "%s," % (tag)
+
+        return tag_list
+
+    except sqlite3.Error, err:
+        if conn:
+            conn.rollback()
+
+        print "Error when posting links: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if conn:
+            conn.close()
 
 
 def init_db():
     try:
-        dbConn = sqlite3.connect(db_path)
-        cur = dbConn.cursor()
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
 
         cur.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'links'")
         data = cur.fetchone()
@@ -132,18 +184,18 @@ def init_db():
             cur.execute("CREATE TABLE links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, category, attribute_link_id INTEGER)")
             cur.execute("CREATE TABLE tags(id INTEGER PRIMARY KEY, name TEXT)")
             cur.execute("CREATE TABLE attribute_links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, title TEXT)")
-            dbConn.commit()
+            conn.commit()
 
     except sqlite3.Error, err:
-        if dbConn:
-            dbConn.rollback()
+        if conn:
+            conn.rollback()
 
         print "Error during database check: %s" % err.args[0]
         sys.exit(1)
 
     finally:
-        if dbConn:
-            dbConn.close()
+        if conn:
+            conn.close()
 
 parser = argparse.ArgumentParser(description = 'Create a link blog entry and post it to WordPress')
 subparsers = parser.add_subparsers()
