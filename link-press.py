@@ -87,13 +87,42 @@ def add_link(args):
             conn.close()
 
 def post_links(args):
+    post_title = build_post_title()
+    
     post_body = build_post_body()
 
     tag_list = build_tag_list()
 
+    update_title_counter()
+
+    print post_title
+
     print post_body
 
     print tag_list
+
+def build_post_title():
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT title, title_counter FROM configuration")
+        config = cur.fetchone()
+
+        title = "%s %s" % (config[0], config[1])
+
+        return title
+
+    except sqlite3.Error, err:
+        if conn:
+            conn.rollback()
+
+        print "Error when getting configuration: %s" % err.args[0]
+        sys.exit(1)
+    
+    finally:
+        if conn:
+            conn.close()
         
 def build_post_body():
     try:
@@ -171,8 +200,88 @@ def build_tag_list():
         if conn:
             conn.close()
 
+def update_title_counter():
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT title_counter FROM configuration")
+        counter = cur.fetchone()
+
+        cur.execute("UPDATE configuration SET title_counter = ?", [counter[0] + 1])
+        conn.commit()
+
+    except sqlite3.Error, err:
+        if conn:
+            conn.rollback()
+
+        print "Error when updating title counter: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if conn:
+            conn.close()
+
 def clear(args):
-    print "Removing data from database."
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("DELETE FROM links")
+        cur.execute("DELETE FROM tags")
+        cur.execute("DELETE FROM attribute_links")
+        conn.commit()
+
+    except sqlite3.Error, err:
+        if conn:
+            conn.rollback()
+
+        print "Error when updating title counter: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if conn:
+            conn.close()
+
+def update_configuration(args):
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        if args.title_counter:
+            cur.execute("UPDATE configuration SET title_counter = ?", [args.title_counter])
+
+        if args.title:
+            cur.execute("UPDATE configuration SET title = ?", [args.title])
+
+        if args.wp_uri:
+            cur.execute("UPDATE configuration SET wp_uri = ?", [args.wp_uri])
+
+        if args.wp_username:
+            cur.execute("UPDATE configuration SET wp_username = ?", [args.wp_username])
+
+        if args.wp_password:
+            cur.execute("UPDATE configuration SET wp_password = ?", [args.password])
+
+        if args.wp_category:
+            cur.execute("UPDATE configuration SET wp_category = ?", [args.wp_category])
+
+        if args.wp_author:
+            cur.execute("UPDATE configuration SET wp_author = ?", [args.wp_author])
+
+        conn.commit()
+
+    except sqlite3.Error, err:
+        if conn:
+            conn.rollback()
+
+        print "Error during configuration update: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if conn:
+            conn.close()
+
 
 def init_db():
     try:
@@ -186,6 +295,7 @@ def init_db():
             cur.execute("CREATE TABLE links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, category, attribute_link_id INTEGER)")
             cur.execute("CREATE TABLE tags(id INTEGER PRIMARY KEY, name TEXT)")
             cur.execute("CREATE TABLE attribute_links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, title TEXT)")
+            cur.execute("CREATE TABLE configuration(title_counter INTEGER, title TEXT, wp_uri TEXT, wp_username TEXT, wp_password TEXT, wp_category TEXT, wp_author TEXT)")
             conn.commit()
 
     except sqlite3.Error, err:
@@ -217,6 +327,16 @@ parser_post.set_defaults(func = post_links)
 
 parser_clear = subparsers.add_parser('clear')
 parser_clear.set_defaults(func = clear)
+
+parser_config = subparsers.add_parser('config')
+parser_config.add_argument('--title_counter', '-c')
+parser_config.add_argument('--title', '-t')
+parser_config.add_argument('--wp_uri', '-u')
+parser_config.add_argument('--wp_username', '-n')
+parser_config.add_argument('--wp_password', '-p')
+parser_config.add_argument('--wp_category', '-g')
+parser_config.add_argument('--wp_author', '-a')
+parser_config.set_defaults(func = update_configuration)
 
 args = parser.parse_args()
 
