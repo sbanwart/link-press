@@ -149,6 +149,7 @@ def create_wp_post(post_title, post_body, tag_list):
         post.title = post_title
         post.description = post_body
         post.categories = [wp_category]
+        post.tags = tag_list
        
         return post
 
@@ -357,7 +358,8 @@ def init_db():
             cur.execute("CREATE TABLE links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, category, attribute_link_id INTEGER)")
             cur.execute("CREATE TABLE tags(id INTEGER PRIMARY KEY, name TEXT)")
             cur.execute("CREATE TABLE attribute_links(id INTEGER PRIMARY KEY, url TEXT, name TEXT, title TEXT)")
-            cur.execute("CREATE TABLE configuration(title_counter INTEGER, title TEXT, wp_uri TEXT, wp_username TEXT, wp_password TEXT, wp_category TEXT, wp_author TEXT)")
+            cur.execute("CREATE TABLE configuration(title_counter INTEGER, title TEXT, wp_uri TEXT, wp_username TEXT, wp_password TEXT, wp_category TEXT)")
+            cur.execute("INSERT INTO configuration (title_counter) VALUES (1)")
             conn.commit()
 
     except sqlite3.Error, err:
