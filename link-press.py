@@ -21,8 +21,10 @@
 import sys
 import os
 import os.path
-import sqlite3
 import argparse
+import sqlite3
+import wordpress_xmlrpc as wp
+import wordpress_xmlrpc.methods.posts as wp_posts
 
 user_home = os.path.expanduser("~")
 data_dir = ".link-press"
@@ -93,6 +95,11 @@ def post_links(args):
 
     tag_list = build_tag_list()
 
+    post = create_wp_post(post_title, post_body, tag_list)
+
+    client = create_wp_client()
+    client.call(wp_posts.NewPost(post, False))
+
     update_title_counter()
 
     print post_title
@@ -100,6 +107,61 @@ def post_links(args):
     print post_body
 
     print tag_list
+
+def create_wp_client():
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT wp_uri, wp_username, wp_password FROM configuration")
+        config = cur.fetchone()
+
+        wp_uri = config[0]
+        wp_username = config[1]
+        wp_password = config[2]
+
+        client = wp.Client(wp_uri, wp_username, wp_password)
+
+        return client
+
+    except sqlite3.Error, err:
+        if conn:
+            conn.rollback()
+
+        print "Error when getting configuration: %s" % err.args[0]
+        sys.exit(1)
+    
+    finally:
+        if conn:
+            conn.close()
+
+def create_wp_post(post_title, post_body, tag_list):
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT wp_category FROM configuration")
+        config = cur.fetchone()
+
+        wp_category = config[0]
+
+        post = wp.WordPressPost()
+        post.title = post_title
+        post.description = post_body
+        post.categories = [wp_category]
+       
+        return post
+
+    except sqlite3.Error, err:
+        if conn:
+            conn.rollback()
+
+        print "Error when getting configuration: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if conn:
+            conn.close()
 
 def build_post_title():
     try:
@@ -183,9 +245,9 @@ def build_tag_list():
         cur.execute("SELECT name FROM tags")
         tags = cur.fetchall()
 
-        tag_list = ""
+        tag_list = []
         for tag in tags:
-            tag_list += "%s," % (tag)
+            tag_list.append(tag[0])
 
         return tag_list
 
@@ -261,7 +323,7 @@ def update_configuration(args):
             cur.execute("UPDATE configuration SET wp_username = ?", [args.wp_username])
 
         if args.wp_password:
-            cur.execute("UPDATE configuration SET wp_password = ?", [args.password])
+            cur.execute("UPDATE configuration SET wp_password = ?", [args.wp_password])
 
         if args.wp_category:
             cur.execute("UPDATE configuration SET wp_category = ?", [args.wp_category])
