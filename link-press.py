@@ -26,6 +26,7 @@ import sqlite3
 import wordpress_xmlrpc as wp
 import wordpress_xmlrpc.methods.posts as wp_posts
 
+version = '0.8.0'
 user_home = os.path.expanduser("~")
 data_dir = ".link-press"
 dbname = "link-press.db"
@@ -75,6 +76,8 @@ def add_link(args):
                 if not data:
                     cur.execute("INSERT INTO tags (name) VALUES (?)", [tag])
                     conn.commit()
+
+            print "Link added to database."
         else:
             print "Link already exists in the database"
     except sqlite3.Error, err:
@@ -95,18 +98,18 @@ def post_links(args):
 
     tag_list = build_tag_list()
 
-    post = create_wp_post(post_title, post_body, tag_list)
+    date_scheduled = ""
+    if args.posting_date:
+        date_scheduled = args.posting_date
+
+    post = create_wp_post(post_title, post_body, tag_list, date_scheduled)
 
     client = create_wp_client()
-    client.call(wp_posts.NewPost(post, False))
+    post_id = client.call(wp_posts.NewPost(post, False))
 
     update_title_counter()
 
-    print post_title
-
-    print post_body
-
-    print tag_list
+    print "Blog post #%s successfully sent to WordPress." % (post_id)
 
 def create_wp_client():
     try:
@@ -135,7 +138,7 @@ def create_wp_client():
         if conn:
             conn.close()
 
-def create_wp_post(post_title, post_body, tag_list):
+def create_wp_post(post_title, post_body, tag_list, date_scheduled):
     try:
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
@@ -150,6 +153,9 @@ def create_wp_post(post_title, post_body, tag_list):
         post.description = post_body
         post.categories = [wp_category]
         post.tags = tag_list
+
+        if date_scheduled:
+            post.date_created = date_scheduled
        
         return post
 
@@ -345,6 +351,12 @@ def update_configuration(args):
         if conn:
             conn.close()
 
+def print_version(args):
+    print """link-press %s
+Copyright (C) 2012 Scott Banwart.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.\n""" % (version)
 
 def init_db():
     try:
@@ -387,6 +399,7 @@ parser_add.add_argument('--attribute_name', '-n')
 parser_add.set_defaults(func = add_link)
 
 parser_post = subparsers.add_parser('post')
+parser_post.add_argument('--posting_date', '-d')
 parser_post.set_defaults(func = post_links)
 
 parser_clear = subparsers.add_parser('clear')
@@ -401,6 +414,9 @@ parser_config.add_argument('--wp_password', '-p')
 parser_config.add_argument('--wp_category', '-g')
 parser_config.add_argument('--wp_author', '-a')
 parser_config.set_defaults(func = update_configuration)
+
+parser_version = subparsers.add_parser('version')
+parser_version.set_defaults(func = print_version)
 
 args = parser.parse_args()
 
