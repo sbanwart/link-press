@@ -26,7 +26,7 @@ import sqlite3
 import wordpress_xmlrpc as wp
 import wordpress_xmlrpc.methods.posts as wp_posts
 
-version = '0.8.0'
+version = '0.8.1'
 user_home = os.path.expanduser("~")
 data_dir = ".link-press"
 dbname = "link-press.db"
@@ -210,6 +210,7 @@ def build_post_body():
 
         cur.execute("SELECT DISTINCT category FROM links")
         categories = cur.fetchall()
+        categories.sort()
 
         post_body = ""
         for category in categories:
