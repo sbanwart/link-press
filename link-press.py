@@ -26,7 +26,7 @@ import sqlite3
 import wordpress_xmlrpc as wp
 import wordpress_xmlrpc.methods.posts as wp_posts
 
-version = '0.8.1'
+version = '0.8.2'
 user_home = os.path.expanduser("~")
 data_dir = ".link-press"
 dbname = "link-press.db"
@@ -44,15 +44,15 @@ def add_link(args):
         conn = sqlite3.connect(db_path)
         cur = conn.cursor()
 
-        cur.execute("SELECT id FROM links WHERE url = ?", [args.url])
+        cur.execute("SELECT id FROM links WHERE url = ?", [args.url.decode('utf8')])
         data = cur.fetchone()
         if not data:
             attribute_link_id = -1
             if args.attribute_url:
-                cur.execute("SELECT id FROM attribute_links WHERE url = ?", [args.attribute_url])
+                cur.execute("SELECT id FROM attribute_links WHERE url = ?", [args.attribute_url.decode('utf8')])
                 data = cur.fetchone()
                 if not data:
-                    values = [args.attribute_url, args.attribute_name, args.attribute_title]
+                    values = [args.attribute_url.decode('utf8'), args.attribute_name.decode('utf8'), args.attribute_title.decode('utf8')]
                     cur.execute("INSERT INTO attribute_links (url, name, title) VALUES (?, ?, ?)", values)
                     cur.execute("SELECT last_insert_rowid()")
                     data = cur.fetchone()
@@ -62,14 +62,14 @@ def add_link(args):
                 conn.commit()
 
             if attribute_link_id > 0:
-                values = [args.url, args.name, args.category, attribute_link_id]
+                values = [args.url.decode('utf8'), args.name.decode('utf8'), args.category.decode('utf8'), attribute_link_id]
                 cur.execute("INSERT INTO links (url, name, category, attribute_link_id) VALUES (?, ?, ?, ?)", values)
             else:
-                values = [args.url, args.name, args.category]
+                values = [args.url.decode('utf8'), args.name.decode('utf8'), args.category.decode('utf8')]
                 cur.execute("INSERT INTO links (url, name, category) VALUES (?, ?, ?)", values)
             conn.commit()
 
-            tags = args.tags.split(",")
+            tags = args.tags.decode('utf8').split(",")
             for tag in tags:
                 cur.execute("SELECT id FROM tags WHERE name = ?", [tag])
                 data = cur.fetchone()
