@@ -26,7 +26,7 @@ import sqlite3
 import wordpress_xmlrpc as wp
 import wordpress_xmlrpc.methods.posts as wp_posts
 
-version = '0.8.2'
+version = '0.8.3'
 user_home = os.path.expanduser("~")
 data_dir = ".link-press"
 dbname = "link-press.db"
@@ -223,7 +223,7 @@ def build_post_body():
             for link in links:
                 attribute_id = link[2]
                 if attribute_id:
-                    post_body += "<li><a title=\"%s\" href=\"%s\">%s</a></li> <span style=\"color: #0000ff;\">%s</span>\n" % (link[1], link[0], link[1], attribute_dict[attribute_id][3])
+                    post_body += "<li><a title=\"%s\" href=\"%s\">%s</a><span style=\"color: #0000ff;\"> %s</span></li>\n" % (link[1], link[0], link[1], attribute_dict[attribute_id][3])
                 else:
                     post_body += "<li><a title=\"%s\" href=\"%s\">%s</a></li>\n" % (link[1], link[0], link[1])
 
