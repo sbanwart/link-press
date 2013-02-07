@@ -26,7 +26,7 @@ import sqlite3
 import wordpress_xmlrpc as wp
 import wordpress_xmlrpc.methods.posts as wp_posts
 
-version = '0.8.3'
+version = '0.9.0'
 user_home = os.path.expanduser("~")
 data_dir = ".link-press"
 dbname = "link-press.db"
@@ -313,6 +313,47 @@ def clear(args):
         if conn:
             conn.close()
 
+def count(args):
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT COUNT(*) FROM links")
+        num_links = cur.fetchone()
+        if num_links == 1:
+            print "There is currenly %s link in the database." % num_links
+        else:
+            print "There are currently %s links in the database." % num_links
+
+    except sqlite3.Error, err:
+        print "Error while trying to count links: %s" % err.args[0]
+        sys.exit(1)
+    
+    finally:
+        if conn:
+            conn.close()
+
+def check(args):
+    try:
+        conn = sqlite3.connect(db_path)
+        cur = conn.cursor()
+
+        cur.execute("SELECT * FROM links WHERE url = ?", [args.url])
+        link = cur.fetchone()
+
+        if link:
+            print "Link %s is currently in the database." % [args.url]
+        else:
+            print "Link %s is currently not in the database." % [args.url]
+
+    except sqlite3.Error, err:
+        print "Error while checking a link: %s" % err.args[0]
+        sys.exit(1)
+
+    finally:
+        if conn:
+            conn.close()
+
 def update_configuration(args):
     try:
         conn = sqlite3.connect(db_path)
@@ -405,6 +446,13 @@ parser_post.set_defaults(func = post_links)
 
 parser_clear = subparsers.add_parser('clear')
 parser_clear.set_defaults(func = clear)
+
+parser_count = subparsers.add_parser('count')
+parser_count.set_defaults(func = count)
+
+parser_check = subparsers.add_parser('check')
+parser_check.add_argument('url')
+parser_check.set_defaults(func = check)
 
 parser_config = subparsers.add_parser('config')
 parser_config.add_argument('--title_counter', '-c')
