@@ -17,7 +17,6 @@ Roadmap
 
 * Add the ability to configure the publishing date so that the script can be run from a cron job.
 * Add support for sending Pushover notifications. (http://pushover.net)
-* Add a URL lookup function
 
 License
 -------
