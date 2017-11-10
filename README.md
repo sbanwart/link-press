@@ -12,11 +12,10 @@ Requirements
 
 This was built on Fedora 17 x86_64, but should run on any Linux system with the proper libraries.
 
-Roadmap
--------
+Status
+------
 
-* Add the ability to configure the publishing date so that the script can be run from a cron job.
-* Add support for sending Pushover notifications. (http://pushover.net)
+As I no longer use WordPress, I am not continuing to work on this project. I am archiving this repository on the off chance that somebody wants to fork it and continue working on it.
 
 License
 -------
